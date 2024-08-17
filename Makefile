@@ -1,0 +1,49 @@
+#include make.config
+
+TARGET = i686-elf
+ARCH = i386
+
+ISO_FILENAME = mOS.iso
+EMULATOR = qemu-system-$(ARCH)
+EMULATOR_FLAGS =
+
+TOOLCHAIN_DIR = toolchain
+TOOLCHAIN_BIN_DIR = $(TOOLCHAIN_DIR)/bin
+KERNEL_DIR = kernel
+ISOBUILD_DIR = static
+
+TOOLCHAIN_TARGET = $(TOOLCHAIN_BIN_DIR)/$(TARGET)-gcc
+KERNEL_TARGET = $(KERNEL_DIR)/mOS.bin
+ISO_TARGET = $(ISOBUILD_DIR)/$(ISO_FILENAME)
+
+
+.PHONY: all clean run debug
+all: $(ISO_FILENAME)
+
+$(ISO_FILENAME): $(ISO_TARGET)
+	cp $(ISO_TARGET) $(ISO_FILENAME)
+
+$(ISO_TARGET): $(KERNEL_TARGET)
+	cp $< $(ISOBUILD_DIR)
+	$(MAKE) -C $(ISOBUILD_DIR)
+
+$(KERNEL_TARGET): $(TOOLCHAIN_TARGET)
+	$(MAKE) -C $(KERNEL_DIR)
+
+$(TOOLCHAIN_TARGET): $(TOOLCHAIN_BIN_DIR)
+
+$(TOOLCHAIN_BIN_DIR):
+	$(MAKE) -C $(TOOLCHAIN_DIR) binutils
+	$(MAKE) -C $(TOOLCHAIN_DIR) gcc
+
+clean:
+	$(RM) -r $(ISO_FILENAME)
+	$(MAKE) -C $(ISOBUILD_DIR) clean
+	$(MAKE) -C $(KERNEL_DIR) clean
+	$(MAKE) -C $(TOOLCHAIN_DIR) clean
+
+run: $(ISO_FILENAME)
+	$(EMULATOR) $(EMULATOR_FLAGS) -cdrom $<
+
+debug: $(ISO_FILENAME) $(KERNEL_DIR)/kernel.sym
+	$(EMULATOR) -s -S $(EMULATOR_FLAGS) -cdrom $< &
